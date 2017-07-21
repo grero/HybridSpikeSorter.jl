@@ -52,34 +52,4 @@ function sort_spikes(datafile::File{format"NSHR"},channel::Int64;kvs...)
                                                                               "spike_model" => modelf,
                                                                               "feature_data" => y))
 end
-
-function plot(waveforms::Matrix{Float64}, cids::Vector{Int64}, modelf::HMMSpikeSorter.HMMSpikingModel)
-    clusterids = unique(cids)
-    sort!(clusterids)
-    nclusters = maximum(clusterids)
-    #plot in PCA space
-    pca = fit(PCA, waveforms)
-    y = transforms(pca, waveforms)
-    fig = plt[:figure]()
-    ax1 = fig[:add_subplot](2,2,1,projection="3d")
-     _colors = [(cc.r, cc.g, cc.b) for cc in distinguishable_colors(nclusters, colorant"tomato";lchoices=linspace(10,80,15))]
-     ax1[:scatter](y[1,:], y[2,:], y[3,:];s=1.0,c=_colors[cids])
-     ll = DirichletProcessMixtures.lratio(cids, y)
-     ax2 = fig[:add_subplot](2,2,2)
-     ax2[:bar](clusterids, [ll[k] for k in clusterids];color=_colors)
-
-     ax3 = fig[:add_subplot](2,2,3)
-     for (i,c) in enumerate(clusterids)
-         _idx = cids .== c
-         μ = mean(y[:,_idx],2)[:]
-         ax3[:plot](μ;color=_colors[c],label="Cluster $c")
-     end
-     ax3[:legend]()
-     
-     ax4 = fig[:add_subplot](224)
-     ax4[:plot](model_response(modelf)[1:80_000])
-     ax4[:plot](predict(modelf)[1:80_000])
-     fig
-end
-
 end #module
