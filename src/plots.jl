@@ -2,6 +2,7 @@ module HybridSpikeSorterPlots
 using HybridSpikeSorter
 using HMMSpikeSorter
 using PyPlot
+using GLAbstraction
 using GLVisualize
 using GLWindow
 using GeometryTypes
@@ -62,7 +63,21 @@ function plot_clusters(Y::Signal{Matrix{Float64}}, cids::Signal{Vector{Int64}})
     _points = map(Y) do _Y
         [Point3f0(Float32(_Y[1,i]), Float32(_Y[2,i]), Float32(_Y[3,i])) for i in 1:size(_Y,2)]
     end
-    _view(visualize((Circle, _points), color=_colors), window,camera=:perspective)
+    vpoints = visualize((Circle, _points), color=_colors)
+    const robj = vpoints.children[]
+    const gpu_colors = robj[:color]
+    const m2id = GLWindow.mouse2id(window)
+    @materialize mouseposition, mouse_buttons_pressed = window.inputs
+    preserve(map(mouse_buttons_pressed) do aa
+                 id, index = value(m2id)
+                 if id == robj.id && 0 < index < length(gpu_colors)
+                     _cid = value(cids)[index]
+                     gpu_colors[index] = Point3f0(0.95f0, 0.1f0, 0.45f0)
+                 end
+                 return index
+             end)
+
+    _view(vpoints, window,camera=:perspective)
     @async GLWindow.waiting_renderloop(window)
     nothing
 end
