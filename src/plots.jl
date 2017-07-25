@@ -60,10 +60,17 @@ function plot_clusters(Y::Signal{Matrix{Float64}}, cids::Signal{Vector{Int64}})
         end
         cc
     end
+    #create the model
+    centroid = -mean(value(Y),2)[:]
+    pm1, pm2, pm3 = extrema(value(Y),2)
+    dotranslate = translationmatrix(Vec3f0(centroid))
+    doscale = scalematrix(Vec3f0(1.0/(pm1[2]-pm1[1]), 1.0/(pm2[2] - pm2[1]), 1.0/(pm3[2] - pm3[1])))
+    thismodel = doscale*dotranslate
+
     _points = map(Y) do _Y
         [Point3f0(Float32(_Y[1,i]), Float32(_Y[2,i]), Float32(_Y[3,i])) for i in 1:size(_Y,2)]
     end
-    vpoints = visualize((Circle, _points),scale=Vec3f0(0.005), color=_colors)
+    vpoints = visualize((Circle, _points),scale=Vec3f0(0.005), color=_colors,model=thismodel)
     const robj = vpoints.children[]
     const gpu_colors = robj[:color]
     const m2id = GLWindow.mouse2id(window)
