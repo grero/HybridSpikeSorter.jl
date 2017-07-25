@@ -63,7 +63,7 @@ function plot_clusters(Y::Signal{Matrix{Float64}}, cids::Signal{Vector{Int64}})
     _points = map(Y) do _Y
         [Point3f0(Float32(_Y[1,i]), Float32(_Y[2,i]), Float32(_Y[3,i])) for i in 1:size(_Y,2)]
     end
-    vpoints = visualize((Circle, _points), color=_colors)
+    vpoints = visualize((Circle, _points),scale=Vec3f0(0.005), color=_colors)
     const robj = vpoints.children[]
     const gpu_colors = robj[:color]
     const m2id = GLWindow.mouse2id(window)
