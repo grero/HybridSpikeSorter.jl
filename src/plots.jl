@@ -44,6 +44,12 @@ end
 
 function plot_clusters(Y::Signal{Matrix{Float64}}, cids::Signal{Vector{Int64}})
     window = glscreen("Cluster Pot", resolution=(1024,1024))
+    active_clusters = map(cids) do _cids
+            clusterids = unique(_cids)
+            sort!(clusterids)
+            nclusters = maximum(clusterids)
+            return ones(UInt8, nclusters)
+    end
     _colors = map(Y, cids) do _Y, _cids
         if isempty(_cids)
             cc = [Point3f0(0.4f0, 0.3f0, 0.1f0) for i in 1:size(_Y,2)]
@@ -51,10 +57,10 @@ function plot_clusters(Y::Signal{Matrix{Float64}}, cids::Signal{Vector{Int64}})
             clusterids = unique(_cids)
             sort!(clusterids)
             nclusters = maximum(clusterids)
-             cluster_colors = distinguishable_colors(nclusters, colorant"tomato";lchoices=linspace(10,80,15))
+            _cluster_colors = distinguishable_colors(nclusters, colorant"tomato";lchoices=linspace(10,80,15))
              cc = Array{Point3f0}(length(_cids))
              for i in 1:length(cc)
-                 q = cluster_colors[_cids[i]]
+                 q = _cluster_colors[_cids[i]]
                  cc[i] = Point3f0(Float32(q.r), Float32(q.g), Float32(q.b))
              end
         end
@@ -74,19 +80,30 @@ function plot_clusters(Y::Signal{Matrix{Float64}}, cids::Signal{Vector{Int64}})
     const robj = vpoints.children[]
     const gpu_colors = robj[:color]
     const m2id = GLWindow.mouse2id(window)
-    @materialize mouseposition, mouse_buttons_pressed = window.inputs
-    preserve(map(mouse_buttons_pressed) do aa
+    @materialize mouseposition, mouse_buttons_pressed, mouse_button_released = window.inputs
+    preserve(map(mouse_button_released) do aa
                  id, index = value(m2id)
                  vcids = value(cids)
+                 aclusters = value(active_clusters)
                  if id == robj.id && 0 < index < length(gpu_colors)
                      _cid = vcids[index]
                      for ii in 1:length(gpu_colors)
                          cc = vcids[ii]
                          if cc == _cid
-                             gpu_colors[ii] += 0.5f0*(Point3f0(1.f0, 1.f0, 1.f0) - gpu_colors[ii])
+                             if aclusters[_cid] == 1
+                                 gpu_colors[ii] += 0.5f0*(Point3f0(1.f0, 1.f0, 1.f0) - gpu_colors[ii])
+                             else
+                                 gpu_colors[ii] = (gpu_colors[ii] - 0.5f0*Point3f0(1.0f0))/(1.f0 - 0.5f0)
+                             end
                          end
                      end
+                     if aclusters[_cid] == 1
+                         aclusters[_cid] = 0
+                     elseif aclusters[_cid] == 0
+                         aclusters[_cid] = 1
+                     end
                  end
+                 push!(active_clusters, aclusters)
                  return index
              end)
 
