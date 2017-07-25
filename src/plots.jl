@@ -77,9 +77,15 @@ function plot_clusters(Y::Signal{Matrix{Float64}}, cids::Signal{Vector{Int64}})
     @materialize mouseposition, mouse_buttons_pressed = window.inputs
     preserve(map(mouse_buttons_pressed) do aa
                  id, index = value(m2id)
+                 vcids = value(cids)
                  if id == robj.id && 0 < index < length(gpu_colors)
-                     _cid = value(cids)[index]
-                     gpu_colors[index] = Point3f0(0.95f0, 0.1f0, 0.45f0)
+                     _cid = vcids[index]
+                     for ii in 1:length(gpu_colors)
+                         cc = vcids[ii]
+                         if cc == _cid
+                             gpu_colors[ii] += 0.5f0*(Point3f0(1.f0, 1.f0, 1.f0) - gpu_colors[ii])
+                         end
+                     end
                  end
                  return index
              end)
