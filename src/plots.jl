@@ -8,38 +8,44 @@ using GLWindow
 using GeometryTypes
 using Colors
 using Reactive
+using StatsBase
 
-function plot_data(fdata::Signal{Vector{Float64}}, y::Signal{Matrix{Float64}}, cids::Signal{Vector{Int64}}, waveforms::Signal{Matrix{Float64}})
+function plot_sorting(feature_model, feature_data::Matrix{Float64}, spike_model,clusterid::Array{Int64,1};max_lratio=20.0)
     fig = plt[:figure]()
     ax1 = fig[:add_subplot](221, projection="3d")
     ax2 = fig[:add_subplot](222)
     ax3 = fig[:add_subplot](223)
-    map(fdata) do _fdata
-        if !isempty(_fdata)
-            ax3[:clear]()
-            ax3[:plot](fdata)
-        end
+    ax4 = fig[:add_subplot](224)
+    ax3[:clear]()
+    fdata = model_response(spike_model)
+    S = predict(spike_model)
+    ax3[:plot](fdata[1:100_000])
+    ax3[:plot](S[1:100_000])
+
+    ax1[:clear]()
+    cids = HybridSpikeSorter.DirichletProcessMixtures.map_assignments(feature_model)
+    ll = HybridSpikeSorter.DirichletProcessMixtures.lratio(feature_model, feature_data)
+    clusters = unique(cids)
+    sort!(clusters)
+    nclusters = maximum(clusters)
+     _colors = [(cc.r, cc.g, cc.b) for cc in distinguishable_colors(nclusters, colorant"tomato";lchoices=linspace(10,80,15))]
+    ax2[:clear]()
+    for i in 1:size(spike_model.template_model.μ,2)
+        ax2[:plot](spike_model.template_model.μ[:,i];color=_colors[clusterid[i]],label="Cluster $(clusterid[i])")
     end
-    map(waveforms) do _waveforms
-        if !isempty(_waveforms)
-            ax2[:clear]()
-            ax2[:plot](_waveforms;color="blue")
-        end
-    end
-    map(y,cids) do _y, _cids
-        if !isempty(_y)
-            ax1[:clear]()
-            if isempty(_cids)
-                ax1[:scatter](_y[1,:], _y[2,:], _y[3,:];s=1.0)
-            else
-                clusterids = unique(cids)
-                sort!(clusterids)
-                nclusters = maximum(clusterids)
-                 _colors = [(cc.r, cc.g, cc.b) for cc in distinguishable_colors(nclusters, colorant"tomato";lchoices=linspace(10,80,15))]
-                 ax1[:scatter](_y[1,:], _y[2,:], _y[3,:];s=1.0, c=_colors[cids])
-             end
-         end
-     end
+    ax2[:legend]()
+    ax1[:scatter](feature_data[1,:], feature_data[2,:], feature_data[3,:];s=1.0, c=_colors[cids])
+    x = collect(keys(ll))
+    ax1[:set_xlabel]("PCA 1")
+    ax1[:set_ylabel]("PCA 2")
+    ax1[:set_zlabel]("PCA 3")
+    sort!(x)
+    ax4[:bar](x, log.([ll[k] for k in x]);color=_colors[x])
+    ax4[:axhline](log(max_lratio);label="L-ratio threshold")
+    ax4[:set_xticks](x)
+    ax4[:set_ylabel]("log(L-ratio)")
+    ax4[:legend]()
+    plt[:tight_layout](true)
 end
 
 function visualize_clusters(model, Y::Matrix{Float64})
