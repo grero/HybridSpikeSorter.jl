@@ -14,7 +14,7 @@ using Colors
 """
 Sort spikes from wide band data recorded at `sampling_rate` on `channel`. Waveforms are extracted as 1.5 ms window are peaks exceeding 6 times the standard deviation of the high pass filtered (500-10kHz). A feature space is created by retaining the first 5 principcal components of the waveforms, and a dirichlet process gaussian mixture model (DPGMM) is fitted to this space using `max_clusters` as the truncation parameter. Clusters with a l-ratio less than `max_lratio` are retained as representing putative single units. Finally, a hidden markov model (HMM) is fit using these units.
 """
-function sort_spikes(data::Vector{Float64},sampling_rate::Real,channel::Int64;chunksize=80000,max_clusters=10,max_lratio=20.0,max_iter=1000,fname="")
+function sort_spikes(data::Vector{Float64},sampling_rate::Real,channel::Int64;chunksize=80000,max_clusters=10,max_lratio=20.0,max_iter=1000,fname="",max_restarts=5)
     if !isempty(fname)
         pp,ext = splitext(fname)
         if ext != ".jld"
@@ -30,9 +30,30 @@ function sort_spikes(data::Vector{Float64},sampling_rate::Real,channel::Int64;ch
     pca = fit(PCA, waveforms;maxoutdim=5)
     y = transform(pca, waveforms)
     C = inv(diagm(pca.prinvars))
+    r = 0
+    success = false
     prior = ConjugatePriors.NormalWishart(zeros(5), 1e-7, C, 5.001)
     model = DirichletProcessMixtures.DPGMM(size(y,2),max_clusters, 1e-10, prior;random_init=true);
-    niter = DirichletProcessMixtures.infer(model,y, max_iter, 1e-2)
+    try
+        niter = DirichletProcessMixtures.infer(model,y, max_iter, 1e-2)
+    catch Base.Linalg.SingularException
+        success = false
+        println("Restarting model fit...")
+        r += 1
+    end
+    success = true
+    while !success && r < max_restarts
+        try
+            prior = ConjugatePriors.NormalWishart(zeros(5), 1e-7, C, 5.001)
+            model = DirichletProcessMixtures.DPGMM(size(y,2),max_clusters, 1e-10, prior;random_init=true);
+            niter = DirichletProcessMixtures.infer(model,y, max_iter, 1e-2)
+        catch Base.Linalg.SingularException
+            success = false
+            println("Restarting model fit...")
+            r += 1
+        end
+        success = true
+    end
     cids = DirichletProcessMixtures.map_assignments(model)
     ll = DirichletProcessMixtures.lratio(cids,y)
     llm = filter((k,v)->v < max_lratio, ll)
