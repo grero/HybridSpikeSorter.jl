@@ -26,7 +26,7 @@ function sort_spikes(data::Vector{Float64},sampling_rate::Real,channel::Int64;ch
     n1 =div(pts,3)
     n2 = pts-n1 
     μ0, σ0 = SpikeExtraction.get_threshold(fdata)
-    idx, waveforms = SpikeExtraction.extract_spikes(fdata;μ=μ0, σ=σ0, nq=(n1,n2), only_negative=true)
+    widx, waveforms = SpikeExtraction.extract_spikes(fdata;μ=μ0, σ=σ0, nq=(n1,n2), only_negative=true)
     pca = fit(PCA, waveforms;maxoutdim=5)
     y = transform(pca, waveforms)
     C = inv(diagm(pca.prinvars))
@@ -58,21 +58,30 @@ function sort_spikes(data::Vector{Float64},sampling_rate::Real,channel::Int64;ch
     ll = DirichletProcessMixtures.lratio(cids,y)
     llm = filter((k,v)->v < max_lratio, ll)
     clusters = collect(keys(llm))
-    sort!(clusters)
-    μ = cat(2, [mean(waveforms[:,cids.==c],2) for c in clusters]...)
-    μ[1,:] = 0.0
-    cc = countmap(cids)
-    lp = [log(cc[k]/length(fdata)) for k in clusters]
-    templates = HMMSpikeSorter.HMMSpikeTemplateModel(μ, lp,true);
-    templates.σ = σ0
-    modelf = fit(HMMSpikeSorter.HMMSpikingModel, templates, fdata, chunksize)
-    units = HMMSpikeSorter.extract_units(modelf,channel;sampling_rate=sampling_rate)
-    HMMSpikeSorter.save_units(units)
-    if !isempty(fname)
-        JLD.save(fname,Dict("units" => units, "feature_model" => model,
-                              "spike_model" => modelf, "feature_data" => y))
+    sorted_data = Dict("feature_model" => model, "feature_data" => y,
+                       "waveforms" => waveforms, "spikeidx" => widx)
+    if !isempty(clusters) # no clusters fulfilled the l-ratio critera
+        sort!(clusters)
+        μ = cat(2, [mean(waveforms[:,cids.==c],2) for c in clusters]...)
+        μ[1,:] = 0.0
+        cc = countmap(cids)
+        lp = [log(cc[k]/length(fdata)) for k in clusters]
+        templates = HMMSpikeSorter.HMMSpikeTemplateModel(μ, lp,true);
+        templates.σ = σ0
+        modelf = fit(HMMSpikeSorter.HMMSpikingModel, templates, fdata, chunksize)
+        units = HMMSpikeSorter.extract_units(modelf,channel;sampling_rate=sampling_rate)
+        HMMSpikeSorter.save_units(units)
+        sorted_data["units"] = units
+        sorted_data["spike_model"] = modelf
     end
-    units, model, y, modelf
+    try
+        if !isempty(fname)
+            JLD.save(fname,sorted_data)
+        end
+    catch
+        warn("Unable to save data")
+    end
+    sorted_data
 end
 
 function sort_spikes(data::Dict,sampling_rate::Real,fname::String;kvs...)
