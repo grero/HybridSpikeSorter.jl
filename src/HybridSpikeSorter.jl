@@ -60,7 +60,10 @@ function sort_spikes(data::Vector{Float64},sampling_rate::Real,channel::Int64;ch
     llm = filter((k,v)->(v < max_lratio)&(spike_counts[k] >= min_number_of_spikes), ll)
     clusters = collect(keys(llm))
     sorted_data = Dict("feature_model" => model, "feature_data" => y,
-                       "waveforms" => waveforms, "spikeidx" => widx)
+                       "waveforms" => waveforms, "spikeidx" => widx,
+                       "max_clusters" => max_clusters, 
+                       "max_lratio" => max_lratio,
+                       "min_number_of_spikes" => min_number_of_spikes)
     if !isempty(clusters) # no clusters fulfilled the l-ratio critera
         sort!(clusters)
         μ = cat(2, [mean(waveforms[:,cids.==c],2) for c in clusters]...)
@@ -74,6 +77,7 @@ function sort_spikes(data::Vector{Float64},sampling_rate::Real,channel::Int64;ch
         HMMSpikeSorter.save_units(units)
         sorted_data["units"] = units
         sorted_data["spike_model"] = modelf
+        sorted_data["clusterid"] = clusters
     end
     try
         if !isempty(fname)
