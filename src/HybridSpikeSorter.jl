@@ -7,6 +7,7 @@ using SpikeSorter
 using HMMSpikeSorter
 using DirichletProcessMixtures
 using RippleTools
+using PlexonTools
 using FileIO
 using JLD
 using Colors
@@ -98,9 +99,19 @@ function sort_spikes(data::Dict,sampling_rate::Real,fname::String;kvs...)
 end
 
 function sort_spikes(datafile::File{format"NSHR"},channel::Int64;kvs...)
+    pp,ext = splitext(datafile.filename)
+    fname = "sorted/$(pp)_channel_$(channel)_sorting.jld"
     data = RippleTools.get_rawdata(datafile.filename, channel)
-    fname = "$(datafile.filename)_channel$(channel)_sorting_models.jld"
-    units,model, y, modelf = sort_spikes(data[channel],30_000.0,channel;fname=fname,kvs...)
+    sorted_data = sort_spikes(data[channel],30_000.0,channel;fname=fname,kvs...)
+end
+
+function sort_spikes(datafile::File{format"PL2"}, channel::Int64;kvs...)
+    pp,ext = splitext(datafile.filename)
+    fname = "sorted/$(pp)_channel_$(channel)_sorting.jld"
+    println("Results will be saved to $(fname)")
+    ch_str = @sprintf "WB%03d" channel
+    ad, ts, fn ,adfreq = PlexonTools.get_rawdata(datafile.filename, ch_str);    
+    sorted_data = sort_spikes(ad, adfreq, channel;fname=fname,kvs...)
 end
 
 end #module
