@@ -42,14 +42,14 @@ function plot_data(fdata::Signal{Vector{Float64}}, y::Signal{Matrix{Float64}}, c
      end
 end
 
-function plot_clusters(model, Y::Matrix{Float64})
+function visualize_clusters(model, Y::Matrix{Float64})
     Ys = Signal(Y)
     cids = Signal(HybridSpikeSorter.DirichletProcessMixtures.map_assignments(model))
-    plot_clusters(Ys,cids)
+    visualize_clusters(Ys,cids)
     Ys,cids
 end
 
-function plot_clusters(Y::Signal{Matrix{Float64}}, cids::Signal{Vector{Int64}})
+function visualize_clusters(Y::Signal{Matrix{Float64}}, cids::Signal{Vector{Int64}})
     window = glscreen("Cluster Pot", resolution=(1024,1024))
     active_clusters = map(cids) do _cids
             clusterids = unique(_cids)
