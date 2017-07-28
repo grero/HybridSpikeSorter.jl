@@ -49,10 +49,24 @@ function plot_sorting(sorted_data::Dict)
 
     ax3[:clear]()
     if spike_model != nothing
+        #find the most representative chunk 
+        window = 20_000
+        nn = zeros(Int64,length(units),div(length(spike_model.ml_seq)-window,window))
+        idx = Array{Array{Int64,1}}(size(nn)...)
+        for i in 1:size(nn,2)
+            for (j,u) in enumerate(keys(units)) 
+                q = filter(x-> (i-1)*window+1 <= x <= i*window, units[u]["timestamps"])
+                idx[j,i] = q
+                nn[j,i] = length(q)
+            end
+        end
+        w = indmax(maximum(nn,1))
         fdata = model_response(spike_model)
-        S = predict(spike_model)
-        ax3[:plot](fdata[1:100_000])
-        ax3[:plot](S[1:100_000])
+        Y = fdata[(w-1)*window+1:w*window]
+        ax3[:plot](Y)
+        for i in 1:size(nn,1)
+            ax3[:scatter](idx[i,w]-((w-1)*window+1), fdata[idx[i,w]];color=_colors[clusterid[i]])
+        end
     end
 
     ax1[:scatter](feature_data[1,:], feature_data[2,:], feature_data[3,:];s=1.0, c=_colors[cids])
