@@ -111,18 +111,34 @@ end
 
 function sort_spikes(datafile::File{format"NSHR"},channel::Int64;kvs...)
     pp,ext = splitext(datafile.filename)
+    if !isdir("sorted")
+        mkdir("sorted")
+    end
     fname = "sorted/$(pp)_channel_$(channel)_sorting.jld"
+    println("Results will be saved to $(fname)")
     data = RippleTools.get_rawdata(datafile.filename, channel)
-    sorted_data = sort_spikes(data[channel],30_000.0,channel;fname=fname,kvs...)
+    sorted_data = Dict()
+    sorted_data = sort_spikes!(sorted_data, data[channel],30_000.0,channel;fname=fname,kvs...)
 end
 
 function sort_spikes(datafile::File{format"PL2"}, channel::Int64;kvs...)
     pp,ext = splitext(datafile.filename)
+    if !isdir("sorted")
+        mkdir("sorted")
+    end
     fname = "sorted/$(pp)_channel_$(channel)_sorting.jld"
     println("Results will be saved to $(fname)")
     ch_str = @sprintf "WB%03d" channel
     ad, ts, fn ,adfreq = PlexonTools.get_rawdata(datafile.filename, ch_str);    
-    sorted_data = sort_spikes(ad, adfreq, channel;fname=fname,kvs...)
+    sorted_data = Dict()
+    sorted_data = sort_spikes!(sorted_data, ad, adfreq, channel;fname=fname,kvs...)
+    if "units" in keys(sorted_data)
+        for (k,v) in sorted_data["units"]
+            PlexonTools.adjust_spiketimes!(v["timestamps"],ts,fn,adfreq)
+        end
+        HMMSpikeSorter.save_units(sorted_data["units"])
+    end
+    return sorted_data
 end
 
 end #module
