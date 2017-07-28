@@ -10,7 +10,15 @@ using Colors
 using Reactive
 using StatsBase
 
-function plot_sorting(feature_model, feature_data::Matrix{Float64}, spike_model,clusterid::Array{Int64,1},waveforms::Matrix{Float64};max_lratio=20.0)
+function plot_sorting(sorted_data::Dict)
+    feature_model = sorted_data["feature_model"]
+    feature_data = sorted_data["feature_data"]
+    spike_model = sorted_data["spike_model"]
+    clusterid = sorted_data["clusterid"]
+    waveforms = sorted_data["waveforms"]
+    max_lratio = sorted_data["max_lratio"]
+    units = sorted_data["units"]
+                        
     fig = plt[:figure]()
     ax1 = fig[:add_subplot](221, projection="3d")
     ax2 = fig[:add_subplot](222)
