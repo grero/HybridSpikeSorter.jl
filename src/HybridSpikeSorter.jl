@@ -89,6 +89,7 @@ function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Re
             sorted_data["clusterid"] = clusters
             sorted_data["max_lratio"] = max_lratio
             sorted_data["min_number_of_spikes"] = min_number_of_spikes
+            sorted_data["cid"] = cids
         end
     end
     try
