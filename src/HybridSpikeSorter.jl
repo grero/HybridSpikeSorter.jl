@@ -63,6 +63,7 @@ function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Re
         sorted_data["max_clusters"] = max_clusters
         sorted_data["max_lratio"] = max_lratio
         sorted_data["min_number_of_spikes"] = min_number_of_spikes
+        sorted_data["sampling_rate"] = sampling_rate
     end
     model = sorted_data["feature_model"]
     y = sorted_data["feature_data"]
