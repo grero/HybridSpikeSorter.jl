@@ -11,6 +11,7 @@ using PlexonTools
 using FileIO
 using JLD
 using Colors
+using ExperimentDataTools
 
 """
 Sort spikes from wide band data recorded at `sampling_rate` on `channel`. Waveforms are extracted as 1.5 ms window are peaks exceeding 6 times the standard deviation of the high pass filtered (500-10kHz). A feature space is created by retaining the first 5 principcal components of the waveforms, and a dirichlet process gaussian mixture model (DPGMM) is fitted to this space using `max_clusters` as the truncation parameter. Clusters with a l-ratio less than `max_lratio` are retained as representing putative single units. Finally, a hidden markov model (HMM) is fit using these units.
@@ -84,7 +85,7 @@ function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Re
             templates.σ = σ0
             modelf = fit(HMMSpikeSorter.HMMSpikingModel, templates, fdata, chunksize)
             units = HMMSpikeSorter.extract_units(modelf,channel;sampling_rate=sampling_rate)
-            HMMSpikeSorter.save_units(units)
+            save_units(units)
             sorted_data["units"] = units
             sorted_data["spike_model"] = modelf
             sorted_data["clusterid"] = clusters
@@ -144,9 +145,30 @@ function sort_spikes(datafile::File{format"PL2"}, channel::Int64;kvs...)
         for (k,v) in sorted_data["units"]
             PlexonTools.adjust_spiketimes!(v["timestamps"],ts,fn,adfreq)
         end
-        HMMSpikeSorter.save_units(sorted_data["units"])
+        save_units(sorted_data["units"])
     end
     return sorted_data
+end
+
+"""
+Load the spike sorting results from the file `f`. The main reason for using this function over JLD.load is that it will reconstruct the spike_model with the raw data, while JLD.load returns a dictionary with the raw data in the variable "y"
+"""
+function load_sorting(f::File{format"JLD"})
+    sorted_data = JLD.load(f)
+    if "y" in keys(sorted_data)
+        if isempty(sorted_data["spike_model"].y)
+            sorted_data["spike_model"].y = sorted_data["y"]
+            delete!(sorted_data,"y")
+        end
+    end
+    sorted_data
+end
+
+function save_units(units::Dict)
+    for (k,v) in units
+        @show keys(v)
+        ExperimentDataTools.get_session_spiketimes(k,v)
+    end
 end
 
 end #module
