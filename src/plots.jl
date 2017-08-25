@@ -13,11 +13,11 @@ using StatsBase
 function plot_sorting(sorted_data::Dict)
     feature_model = sorted_data["feature_model"]
     feature_data = sorted_data["feature_data"]
-    spike_model = sorted_data["spike_model"]
-    clusterid = sorted_data["clusterid"]
+    spike_model = get(sorted_data,"spike_model",nothing)
+    clusterid = get(sorted_data,"clusterid",Int64[])
     waveforms = sorted_data["waveforms"]
     max_lratio = sorted_data["max_lratio"]
-    units = sorted_data["units"]
+    units = get(sorted_data,"units",Dict())
                         
     fig = plt[:figure]()
     ax1 = fig[:add_subplot](221, projection="3d")
