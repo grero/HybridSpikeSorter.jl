@@ -17,10 +17,10 @@ using ExperimentDataTools
 Sort spikes from wide band data recorded at `sampling_rate` on `channel`. Waveforms are extracted as 1.5 ms window are peaks exceeding 6 times the standard deviation of the high pass filtered (500-10kHz). A feature space is created by retaining the first 5 principcal components of the waveforms, and a dirichlet process gaussian mixture model (DPGMM) is fitted to this space using `max_clusters` as the truncation parameter. Clusters with a l-ratio less than `max_lratio` are retained as representing putative single units. Finally, a hidden markov model (HMM) is fit using these units.
 """
 function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Real,channel::Int64;chunksize=80000,max_clusters=10,max_lratio=20.0,max_iter=1000,fname="",max_restarts=5,min_number_of_spikes=100,time_adjust=Float64[])
-    fdata = SpikeExtraction.highpass_filter(data, sampling_rate) 
+    fdata = SpikeExtraction.highpass_filter(data, sampling_rate)
     pts = round(Int64,1.5*sampling_rate/1000)
     n1 =div(pts,3)
-    n2 = pts-n1 
+    n2 = pts-n1
     μ0, σ0 = SpikeExtraction.get_threshold(fdata)
     if !("feature_model" in keys(sorted_data))
         if !isempty(fname)
@@ -143,7 +143,7 @@ function sort_spikes(datafile::File{format"PL2"}, channel::Int64;kvs...)
     fname = "sorted/$(pp)_channel_$(channel)_sorting.jld"
     println("Results will be saved to $(fname)")
     ch_str = @sprintf "WB%03d" channel
-    ad, ts, fn ,adfreq = PlexonTools.get_rawdata(datafile.filename, ch_str);    
+    ad, ts, fn ,adfreq = PlexonTools.get_rawdata(datafile.filename, ch_str);
     sorted_data = Dict()
     sorted_data = sort_spikes!(sorted_data, ad, adfreq, channel;fname=fname,kvs...)
     if "units" in keys(sorted_data)
