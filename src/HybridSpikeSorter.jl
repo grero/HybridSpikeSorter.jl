@@ -96,13 +96,18 @@ function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Re
     end
     try
         if !isempty(fname)
-            #move the raw data from modelf to its own entry so that we can easily read it from e.g. matlab
-            sorted_data["y"] = sorted_data["spike_model"].y
-            sorted_data["spike_model"].y = Float64[]
-            JLD.save(fname,sorted_data)
-            #restore it
-            sorted_data["spike_model"].y = sorted_data["y"]
-            delete!(sorted_data, "y")
+            if "spike_model" in keys(sorted_data)
+                #move the raw data from modelf to its own entry so that we can easily read it from e.g. matlab
+                sorted_data["y"] = sorted_data["spike_model"].y
+                sorted_data["spike_model"].y = Float64[]
+                JLD.save(fname,sorted_data)
+                #restore it
+                sorted_data["spike_model"].y = sorted_data["y"]
+                delete!(sorted_data, "y")
+            else
+                sorted_data["y"] = fdata
+                JLD.save(fname,sorted_data)
+            end
         end
     catch
         warn("Unable to save data")
