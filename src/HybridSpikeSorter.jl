@@ -85,7 +85,9 @@ function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Re
             templates.σ = σ0
             modelf = fit(HMMSpikeSorter.HMMSpikingModel, templates, fdata, chunksize)
             units = HMMSpikeSorter.extract_units(modelf,channel;sampling_rate=sampling_rate)
-            save_units(units)
+            if isfile("event_markers.txt")
+              save_units(units)
+            end
             sorted_data["units"] = units
             sorted_data["spike_model"] = modelf
             sorted_data["clusterid"] = clusters
