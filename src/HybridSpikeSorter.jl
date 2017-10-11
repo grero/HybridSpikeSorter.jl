@@ -11,7 +11,6 @@ using PlexonTools
 using FileIO
 using JLD
 using Colors
-using ExperimentDataTools
 
 """
 Sort spikes from wide band data recorded at `sampling_rate` on `channel`. Waveforms are extracted as 1.5 ms window are peaks exceeding 6 times the standard deviation of the high pass filtered (500-10kHz). A feature space is created by retaining the first 5 principcal components of the waveforms, and a dirichlet process gaussian mixture model (DPGMM) is fitted to this space using `max_clusters` as the truncation parameter. Clusters with a l-ratio less than `max_lratio` are retained as representing putative single units. Finally, a hidden markov model (HMM) is fit using these units.
@@ -173,8 +172,7 @@ end
 
 function save_units(units::Dict)
     for (k,v) in units
-        @show keys(v)
-        ExperimentDataTools.get_session_spiketimes(k,v)
+        MAT.matwrite(k, v)
     end
 end
 
