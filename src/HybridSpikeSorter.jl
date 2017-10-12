@@ -7,7 +7,6 @@ using SpikeSorter
 using HMMSpikeSorter
 using DirichletProcessMixtures
 using RippleTools
-using PlexonTools
 using FileIO
 using JLD
 using Colors
@@ -15,7 +14,7 @@ using Colors
 """
 Sort spikes from wide band data recorded at `sampling_rate` on `channel`. Waveforms are extracted as 1.5 ms window are peaks exceeding 6 times the standard deviation of the high pass filtered (500-10kHz). A feature space is created by retaining the first 5 principcal components of the waveforms, and a dirichlet process gaussian mixture model (DPGMM) is fitted to this space using `max_clusters` as the truncation parameter. Clusters with a l-ratio less than `max_lratio` are retained as representing putative single units. Finally, a hidden markov model (HMM) is fit using these units.
 """
-function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Real,channel::Int64;chunksize=80000,max_clusters=10,max_lratio=20.0,max_iter=1000,fname="",max_restarts=5,min_number_of_spikes=100,time_adjust=Float64[])
+function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Real,channel::Int64;chunksize=80000,max_clusters=10,max_lratio=20.0,max_iter=1000,fname="",max_restarts=5,min_number_of_spikes=100,time_adjust=Float64[],resolve_overlaps=true,save_output=true)
     fdata = SpikeExtraction.highpass_filter(data, sampling_rate)
     pts = round(Int64,1.5*sampling_rate/1000)
     n1 =div(pts,3)
@@ -68,7 +67,7 @@ function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Re
     model = sorted_data["feature_model"]
     y = sorted_data["feature_data"]
     waveforms = sorted_data["waveforms"]
-    if !("spike_model" in keys(sorted_data))
+    if !("spike_model" in keys(sorted_data)) || spike_model["max_lratio"] != max_lratio
         cids = DirichletProcessMixtures.map_assignments(model)
         spike_counts = countmap(cids)
         ll = DirichletProcessMixtures.lratio(cids,y)
@@ -80,8 +79,9 @@ function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Re
             μ[1,:] = 0.0
             cc = countmap(cids)
             lp = [log(cc[k]/length(fdata)) for k in clusters]
-            templates = HMMSpikeSorter.HMMSpikeTemplateModel(μ, lp,true);
+            templates = HMMSpikeSorter.HMMSpikeTemplateModel(μ, lp,resolve_overlaps);
             templates.σ = σ0
+            println("Fitting a dynamic model with $(size(μ,2)) cells")
             modelf = fit(HMMSpikeSorter.HMMSpikingModel, templates, fdata, chunksize)
             units = HMMSpikeSorter.extract_units(modelf,channel;sampling_rate=sampling_rate)
             if isfile("event_markers.txt")
@@ -96,7 +96,7 @@ function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Re
         end
     end
     try
-        if !isempty(fname)
+        if !isempty(fname) && save_output
             if "spike_model" in keys(sorted_data)
                 #move the raw data from modelf to its own entry so that we can easily read it from e.g. matlab
                 sorted_data["y"] = sorted_data["spike_model"].y
@@ -124,36 +124,24 @@ function sort_spikes(data::Dict,sampling_rate::Real,fname::String;kvs...)
          data)
 end
 
-function sort_spikes(datafile::File{format"NSHR"},channel::Int64;kvs...)
-    pp,ext = splitext(datafile.filename)
-    if !isdir("sorted")
-        mkdir("sorted")
+function sort_spikes(datafile::File{format"NSHR"},channel::Int64;save_output=true, kvs...)
+    dd,ff = splitdir(datafile.filename)
+    if isempty(dd)
+        dd = pwd()
     end
-    fname = "sorted/$(pp)_channel_$(channel)_sorting.jld"
-    println("Results will be saved to $(fname)")
+    pp,ext = splitext(ff)
+    fname = "$(dd)/sorted/$(pp)_channel_$(channel)_sorting.jld"
+    if save_output
+        if !isdir("$(dd)/sorted")
+            mkdir("$(dd)/sorted")
+        end
+        println("Results will be saved to $(fname)")
+    end
     data = RippleTools.get_rawdata(datafile.filename, channel)
     sorted_data = Dict()
-    sorted_data = sort_spikes!(sorted_data, data[channel],30_000.0,channel;fname=fname,kvs...)
-end
-
-function sort_spikes(datafile::File{format"PL2"}, channel::Int64;kvs...)
-    pp,ext = splitext(datafile.filename)
-    if !isdir("sorted")
-        mkdir("sorted")
-    end
-    fname = "sorted/$(pp)_channel_$(channel)_sorting.jld"
-    println("Results will be saved to $(fname)")
-    ch_str = @sprintf "WB%03d" channel
-    ad, ts, fn ,adfreq = PlexonTools.get_rawdata(datafile.filename, ch_str);
-    sorted_data = Dict()
-    sorted_data = sort_spikes!(sorted_data, ad, adfreq, channel;fname=fname,kvs...)
-    if "units" in keys(sorted_data)
-        for (k,v) in sorted_data["units"]
-            PlexonTools.adjust_spiketimes!(v["timestamps"],ts,fn,adfreq)
-        end
-        save_units(sorted_data["units"])
-    end
-    return sorted_data
+    sorted_data = sort_spikes!(sorted_data, data[channel],30_000.0,channel;fname=fname,save_output=save_output,kvs...)
+    sorted_data["filename"] = fname
+    sorted_data
 end
 
 """
