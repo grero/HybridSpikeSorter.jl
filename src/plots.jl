@@ -53,8 +53,10 @@ function plot_sorting(sorted_data::Dict)
         nn = zeros(Int64,length(units),div(length(spike_model.ml_seq)-window,window))
         idx = Array{Array{Int64,1}}(size(nn)...)
         for i in 1:size(nn,2)
-            for (j,u) in enumerate(keys(units)) 
+            for u in keys(units)
                 q = filter(x-> (i-1)*window+1 <= x <= i*window, units[u]["timestamps"])
+                m = match(r"c([0-9]*)", u)
+                j = parse(Int64,m.captures[1])
                 idx[j,i] = q
                 nn[j,i] = length(q)
             end
