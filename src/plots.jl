@@ -45,7 +45,6 @@ function plot_sorting(sorted_data::Dict)
             ax2[:plot](spike_model.template_model.μ[:,i];color=_colors[clusterid[i]],label="Cluster $(clusterid[i])",linewidth=3.0)
         end
     end
-    ax2[:legend]()
 
     ax3[:clear]()
     if spike_model != nothing
