@@ -63,10 +63,11 @@ function plot_sorting(sorted_data::Dict)
         end
         w = indmax(maximum(nn,1))
         fdata = model_response(spike_model)
-        Y = fdata[(w-1)*window+1:w*window]
-        ax3[:plot](Y)
+        tt = (w-1)*window+1:w*window
+        Y = fdata[tt]
+        ax3[:plot](tt,Y)
         for i in 1:size(nn,1)
-            ax3[:scatter](idx[i,w]-((w-1)*window+1), fdata[idx[i,w]];color=_colors[clusterid[i]])
+            ax3[:scatter](idx[i,w], fdata[idx[i,w]];color=_colors[clusterid[i]])
         end
     end
 
