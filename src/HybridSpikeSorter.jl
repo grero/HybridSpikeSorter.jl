@@ -71,7 +71,12 @@ function sort_spikes!(sorted_data::Dict, data::Vector{Float64},sampling_rate::Re
         cids = DirichletProcessMixtures.map_assignments(model)
         spike_counts = countmap(cids)
         ll = DirichletProcessMixtures.lratio(cids,y)
-        llm = filter((k,v)->(v < max_lratio)&(spike_counts[k] >= min_number_of_spikes), ll)
+        lln = Dict()
+        for k in keys(ll)
+            m = sum(values(filter((k2,v2)->k2!=k, spike_counts)))
+            lln[k] = ll[k]/m
+        end
+        llm = filter((k,v)->(v < max_lratio)&(spike_counts[k] >= min_number_of_spikes), lln)
         clusters = collect(keys(llm))
         if !isempty(clusters) # no clusters fulfilled the l-ratio critera
             sort!(clusters)
